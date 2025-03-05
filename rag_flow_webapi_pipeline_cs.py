@@ -12,11 +12,13 @@ from typing import List, Union, Generator, Iterator, Optional
 import requests
 import json
 
-API_KEY="ragflow-JhYWFjYWM0ZjkwMjExZWZiOWI1MDI0Mm"
-AGENT_ID = "f2e7bad4f9c311ef8ccc0242ac160006"
+API_KEY="替换为你的ragflow的api_key"
+AGENT_ID = "替换为你的ragflow中的agent的id"
+RAGFLOW_HOST="http://yourhost:yourport"
 class Pipeline:
 
     def __init__(self):
+        #用于维持ragflow的会话ID，维护会话ID可以在open-webui中保证会话的上下文连贯性。
         self.session_id=None
         self.debug=True
         self.sessionKV={}
@@ -39,7 +41,7 @@ class Pipeline:
                 print(f"cache ragflow's session_id is : {self.session_id}")
             else:
                 #创建session
-                session_url = f"http://qingsongbang.x3322.net:50086/api/v1/agents/{AGENT_ID}/sessions"
+                session_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/sessions"
                 session_headers = {
                     'content-Type': 'application/json',
                     'Authorization': 'Bearer '+API_KEY
@@ -74,7 +76,7 @@ class Pipeline:
 
         # print(messages)
         #print(f"body is :{body}")
-        question_url = f"http://qingsongbang.x3322.net:50086/api/v1/agents/{AGENT_ID}/completions"
+        question_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/completions"
         question_headers = {
             'content-Type': 'application/json',
             'Authorization': 'Bearer '+API_KEY
@@ -100,13 +102,10 @@ class Pipeline:
                                 filesList=[]
                                 for chunk in json_data['data']['reference']['chunks']:
                                     if chunk['document_id'] not in filesList:
-                                       referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"](http://qingsongbang.x3322.net:50086/document/{chunk['document_id']}?ext=docx&prefix=document)"
+                                       referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({RAGFLOW_HOST}/document/{chunk['document_id']}?ext=docx&prefix=document)"
                                        filesList.append(chunk['document_id'])
-                                print(f"chunks is :{len(json_data['data']['reference']['chunks'])}")
-                                print(f"chunks is :{json_data['data']['reference']['chunks']}")
                                 yield referenceStr
                             else:
-                                print(json_data['data'])
                                 yield json_data['data']['answer'][step:]
                                 step=len(json_data['data']['answer'])
 
