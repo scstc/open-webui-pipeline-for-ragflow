@@ -32,26 +32,24 @@ class Pipeline:
         pass
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
         # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
-        print(f"inlet: {__name__}")
-        if self.debug:
-            chat_id=body['metadata']['chat_id']
-            print(f"inlet: {__name__} - chat_id:{chat_id}")
-            if self.sessionKV.get(chat_id):
-                self.session_id=self.sessionKV.get(chat_id)
-                print(f"cache ragflow's session_id is : {self.session_id}")
-            else:
-                #创建session
-                session_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/sessions"
-                session_headers = {
+        chat_id=body['metadata']['chat_id']
+        if self.sessionKV.get(chat_id):
+            self.session_id=self.sessionKV.get(chat_id)
+        else:
+            #创建session
+            session_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/sessions"
+            session_headers = {
                     'content-Type': 'application/json',
                     'Authorization': 'Bearer '+API_KEY
-                }
-                session_data={}
-                session_response = requests.post(session_url, headers=session_headers, json=session_data)
-                json_res=json.loads(session_response.text)
-                self.session_id=json_res['data']['id']
-                self.sessionKV[chat_id]=self.session_id
-                print(f"new ragflow's session_id is : {json_res['data']['id']}")
+            }
+            session_data={}
+            session_response = requests.post(session_url, headers=session_headers, json=session_data)
+            json_res=json.loads(session_response.text)
+            self.session_id=json_res['data']['id']
+            self.sessionKV[chat_id]=self.session_id
+        if self.debug:
+            print(f"inlet: {__name__}")
+            print(f"inlet: {__name__} - chat_id:{chat_id}")
             #print(f"inlet: {__name__} - body:{body}")
             print(f"inlet: {__name__} - user:")
             print(user)
