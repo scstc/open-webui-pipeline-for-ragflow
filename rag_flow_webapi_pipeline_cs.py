@@ -1,7 +1,7 @@
 """
 title: RagFlow Pipeline
-author: open-webui
-date: 2024-05-30
+author: luyilong2015
+date: 2025-01-28
 version: 1.0
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the RagFlow's Agent Interface.
