@@ -5,24 +5,37 @@ date: 2024-05-30
 version: 1.0
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the RagFlow's Agent Interface.
-requirements: ragflow_sdk, datasets>=2.6.1, sentence-transformers>=2.2.0
+requirements: datasets>=2.6.1, sentence-transformers>=2.2.0
 """
 #智能客服
 from typing import List, Union, Generator, Iterator, Optional
+from pydantic import BaseModel
 import requests
 import json
 
-API_KEY="替换为你的ragflow的api_key"
-AGENT_ID = "替换为你的ragflow中的agent的id"
-RAGFLOW_HOST="http://yourhost:yourport"
+#API_KEY: ragflow的apikey
+#AGENT_ID: ragflow的agentid
+#HOST: ragflow的host
+#PORT: ragflow的port
 class Pipeline:
+    class Valves(BaseModel):
+        API_KEY: str
+        AGENT_ID: str
+        HOST: str
+        PORT: str
 
     def __init__(self):
-        #用于维持ragflow的会话ID，维护会话ID可以在open-webui中保证会话的上下文连贯性。
         self.session_id=None
         self.debug=True
         self.sessionKV={}
-        pass
+        self.valves = self.Valves(
+            **{
+                "API_KEY": "",
+                "AGENT_ID": "",
+                "HOST":"",
+                "PORT":""
+            }
+        )
 
     async def on_startup(self):
         pass
@@ -32,24 +45,26 @@ class Pipeline:
         pass
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
         # This function is called before the OpenAI API request is made. You can modify the form data before it is sent to the OpenAI API.
-        chat_id=body['metadata']['chat_id']
-        if self.sessionKV.get(chat_id):
-            self.session_id=self.sessionKV.get(chat_id)
-        else:
-            #创建session
-            session_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/sessions"
-            session_headers = {
-                    'content-Type': 'application/json',
-                    'Authorization': 'Bearer '+API_KEY
-            }
-            session_data={}
-            session_response = requests.post(session_url, headers=session_headers, json=session_data)
-            json_res=json.loads(session_response.text)
-            self.session_id=json_res['data']['id']
-            self.sessionKV[chat_id]=self.session_id
+        print(f"inlet: {__name__}")
         if self.debug:
-            print(f"inlet: {__name__}")
+            chat_id=body['metadata']['chat_id']
             print(f"inlet: {__name__} - chat_id:{chat_id}")
+            if self.sessionKV.get(chat_id):
+                self.session_id=self.sessionKV.get(chat_id)
+                print(f"cache ragflow's session_id is : {self.session_id}")
+            else:
+                #创建session
+                session_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents/{self.valves.AGENT_ID}/sessions"
+                session_headers = {
+                    'content-Type': 'application/json',
+                    'Authorization': 'Bearer '+self.valves.API_KEY
+                }
+                session_data={}
+                session_response = requests.post(session_url, headers=session_headers, json=session_data)
+                json_res=json.loads(session_response.text)
+                self.session_id=json_res['data']['id']
+                self.sessionKV[chat_id]=self.session_id
+                print(f"new ragflow's session_id is : {json_res['data']['id']}")
             #print(f"inlet: {__name__} - body:{body}")
             print(f"inlet: {__name__} - user:")
             print(user)
@@ -71,13 +86,11 @@ class Pipeline:
     ) -> Union[str, Generator, Iterator]:
         # This is where you can add your custom RAG pipeline.
         # Typically, you would retrieve relevant information from your knowledge base and synthesize it to generate a response.
-
         # print(messages)
-        #print(f"body is :{body}")
-        question_url = f"{RAGFLOW_HOST}/api/v1/agents/{AGENT_ID}/completions"
+        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents/{self.valves.AGENT_ID}/completions"
         question_headers = {
             'content-Type': 'application/json',
-            'Authorization': 'Bearer '+API_KEY
+            'Authorization': 'Bearer '+self.valves.API_KEY
         }
         question_data={'question':user_message,
                        'stream':True,
@@ -100,10 +113,13 @@ class Pipeline:
                                 filesList=[]
                                 for chunk in json_data['data']['reference']['chunks']:
                                     if chunk['document_id'] not in filesList:
-                                       referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({RAGFLOW_HOST}/document/{chunk['document_id']}?ext=docx&prefix=document)"
+                                       referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext=docx&prefix=document)"
                                        filesList.append(chunk['document_id'])
+                                print(f"chunks is :{len(json_data['data']['reference']['chunks'])}")
+                                print(f"chunks is :{json_data['data']['reference']['chunks']}")
                                 yield referenceStr
                             else:
+                                print(json_data['data'])
                                 yield json_data['data']['answer'][step:]
                                 step=len(json_data['data']['answer'])
 
