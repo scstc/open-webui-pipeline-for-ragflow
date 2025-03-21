@@ -15,7 +15,7 @@ import json
 
 #API_KEY: ragflow的apikey
 #AGENT_ID: ragflow的agentid
-#HOST: ragflow的host
+#HOST: ragflow的host  要加http://或https://头。 
 #PORT: ragflow的port
 class Pipeline:
     class Valves(BaseModel):
