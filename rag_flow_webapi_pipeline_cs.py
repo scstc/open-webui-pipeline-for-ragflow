@@ -13,10 +13,10 @@ from pydantic import BaseModel
 import requests
 import json
 
-#API_KEY: ragflow的apikey
-#AGENT_ID: ragflow的agentid
-#HOST: ragflow的host  要加http://或https://头。 
-#PORT: ragflow的port
+#API_KEY: ragflow apikey
+#AGENT_ID: ragflow agentid
+#HOST: ragflow host  start with http:// or https:// 
+#PORT: ragflow port
 class Pipeline:
     class Valves(BaseModel):
         API_KEY: str
@@ -113,13 +113,17 @@ class Pipeline:
                                 filesList=[]
                                 for chunk in json_data['data']['reference']['chunks']:
                                     if chunk['document_id'] not in filesList:
-                                       referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext=docx&prefix=document)"
-                                       filesList.append(chunk['document_id'])
-                                print(f"chunks is :{len(json_data['data']['reference']['chunks'])}")
-                                print(f"chunks is :{json_data['data']['reference']['chunks']}")
+                                        filename = chunk['document_name']
+                                        parts = filename.split('.')
+                                        last_part = parts[-1].strip()
+                                        ext= last_part.lower() if last_part else ''
+                                        referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext={ext}&prefix=document)"
+                                        filesList.append(chunk['document_id'])
+                                #print(f"chunks is :{len(json_data['data']['reference']['chunks'])}")
+                                #print(f"chunks is :{json_data['data']['reference']['chunks']}")
                                 yield referenceStr
                             else:
-                                print(json_data['data'])
+                                #print(json_data['data'])
                                 yield json_data['data']['answer'][step:]
                                 step=len(json_data['data']['answer'])
 
