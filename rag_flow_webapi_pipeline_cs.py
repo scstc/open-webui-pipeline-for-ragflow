@@ -90,45 +90,41 @@ class Pipeline:
         question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents_openai/{self.valves.AGENT_ID}/completions"
         question_headers = {
             'content-Type': 'application/json',
-            'Authorization': 'Bearer '+self.valves.API_KEY
+            'Authorization': 'Bearer ' + self.valves.API_KEY
         }
         question_data={'question':user_message,
                        'stream':True,
                        'session_id':self.session_id,
                        'lang':'Chinese'}
-        question_response = requests.post(question_url, headers=question_headers,stream=True, json=question_data)
-        if question_response.status_code == 200:
-            # Process and yield each chunk from the response
-            step=0
-            for line in question_response.iter_lines():
-                if line:
-                    try:
-                        # Remove 'data: ' prefix and parse JSON
-                        json_data = json.loads(line.decode('utf-8')[5:])
-                        # Extract and yield only the 'text' field from the nested 'data' object
-                        # pring reference
-                        if 'data' in json_data and json_data['data'] is not True and 'answer' in json_data['data'] and '* is running...' not in json_data['data']['answer'] :
-                            if 'chunks' in json_data['data']['reference']:
-                                referenceStr="\n\n### references\n\n"
-                                filesList=[]
-                                for chunk in json_data['data']['reference']['chunks']:
-                                    if chunk['document_id'] not in filesList:
-                                        filename = chunk['document_name']
-                                        parts = filename.split('.')
-                                        last_part = parts[-1].strip()
-                                        ext= last_part.lower() if last_part else ''
-                                        referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext={ext}&prefix=document)"
-                                        filesList.append(chunk['document_id'])
-                                #print(f"chunks is :{len(json_data['data']['reference']['chunks'])}")
-                                #print(f"chunks is :{json_data['data']['reference']['chunks']}")
-                                yield referenceStr
-                            else:
-                                #print(json_data['data'])
-                                yield json_data['data']['answer'][step:]
-                                step=len(json_data['data']['answer'])
+        print(f"Requesting URL: {question_url}") # Debug print
+        question_response = requests.post(question_url, headers=question_headers, stream=True, json=question_data)
+        question_response.raise_for_status() # Raise an exception for bad status codes
 
+        step = 0
+        for line in question_response.iter_lines():
+            if line:
+                try:
+                    # Remove 'data: ' prefix and parse JSON
+                    json_data = json.loads(line.decode('utf-8')[5:])
+                    # Extract and yield only the 'text' field from the nested 'data' object
+                    if 'data' in json_data and json_data['data'] is not True and 'answer' in json_data['data'] and '* is running...' not in json_data['data']['answer'] :
+                        if 'chunks' in json_data['data']['reference']:
+                            referenceStr="\n\n### references\n\n"
+                            filesList=[]
+                            for chunk in json_data['data']['reference']['chunks']:
+                                if chunk['document_id'] not in filesList:
+                                    filename = chunk['document_name']
+                                    parts = filename.split('.')
+                                    last_part = parts[-1].strip()
+                                    ext= last_part.lower() if last_part else ''
+                                    referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext={ext}&prefix=document)"
+                                    filesList.append(chunk['document_id'])
+                            yield referenceStr
+                        else:
+                            yield json_data['data']['answer'][step:]
+                            step=len(json_data['data']['answer'])
 
-                    except json.JSONDecodeError:
-                        print(f"Failed to parse JSON: {line}")
+                except json.JSONDecodeError:
+                    print(f"Failed to parse JSON: {line}")
         else:
             yield f"Workflow request failed with status code: {question_response.status_code}"
