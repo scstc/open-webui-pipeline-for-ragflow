@@ -96,7 +96,7 @@ class Pipeline:
                        'stream':True,
                        'session_id':self.session_id,
                        'lang':'Chinese'}
-        question_response = requests.post(question_url, headers=question_headers,stream=True, json=question_data)
+        question_response = requests.post(question_url, headers=question_headers, stream=True, json=question_data, verify=False)
         if question_response.status_code == 200:
             # Process and yield each chunk from the response
             step=0
