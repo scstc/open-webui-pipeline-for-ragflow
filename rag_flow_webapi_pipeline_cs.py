@@ -54,7 +54,7 @@ class Pipeline:
                 print(f"cache ragflow's session_id is : {self.session_id}")
             else:
                 #创建session
-                session_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agentbots/{self.valves.AGENT_ID}/sessions"
+                session_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents/{self.valves.AGENT_ID}/sessions"
                 session_headers = {
                     'content-Type': 'application/json',
                     'Authorization': 'Bearer '+self.valves.API_KEY
@@ -87,7 +87,7 @@ class Pipeline:
         # This is where you can add your custom RAG pipeline.
         # Typically, you would retrieve relevant information from your knowledge base and synthesize it to generate a response.
         # print(messages)
-        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agentbots/{self.valves.AGENT_ID}/completions"
+        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents_openai/{self.valves.AGENT_ID}/completions"
         question_headers = {
             'content-Type': 'application/json',
             'Authorization': 'Bearer '+self.valves.API_KEY
@@ -96,7 +96,7 @@ class Pipeline:
                        'stream':True,
                        'session_id':self.session_id,
                        'lang':'Chinese'}
-        question_response = requests.post(question_url, headers=question_headers, stream=True, json=question_data, verify=False)
+        question_response = requests.post(question_url, headers=question_headers,stream=True, json=question_data)
         if question_response.status_code == 200:
             # Process and yield each chunk from the response
             step=0
