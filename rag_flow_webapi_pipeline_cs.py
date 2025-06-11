@@ -94,6 +94,8 @@ class Pipeline:
         }
         question_data={'question':user_message,
                        'stream':True,
+                       'model':'model',
+                       'message': user_message,
                        'session_id':self.session_id,
                        'lang':'Chinese'}
         print(f"Requesting URL: {question_url}") # Debug print
