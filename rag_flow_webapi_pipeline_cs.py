@@ -98,6 +98,7 @@ class Pipeline:
                        'message': user_message,
                        'session_id':self.session_id,
                        'lang':'Chinese'}
+        print(f"Question_data: {question_data}") # Debug print
         print(f"Requesting URL: {question_url}") # Debug print
         question_response = requests.post(question_url, headers=question_headers, stream=True, json=question_data)
         question_response.raise_for_status() # Raise an exception for bad status codes
