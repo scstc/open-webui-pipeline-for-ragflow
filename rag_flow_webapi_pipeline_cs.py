@@ -81,53 +81,56 @@ class Pipeline:
             print(f"outlet: {__name__} - user:")
             print(user)
         return body
-    def pipe(
-        self, user_message: str, model_id: str, messages: List[dict], body: dict
-    ) -> Union[str, Generator, Iterator]:
-        # This is where you can add your custom RAG pipeline.
-        # Typically, you would retrieve relevant information from your knowledge base and synthesize it to generate a response.
-        # print(messages)
-        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents_openai/{self.valves.AGENT_ID}/chat/completions"
-        question_headers = {
-            'content-Type': 'application/json',
-            'Authorization': 'Bearer ' + self.valves.API_KEY
-        }
-        question_data={'question':user_message,
-                       'stream':True,
-                       'model':'model',
-                       'message': user_message,
-                       'session_id':self.session_id,
-                       'lang':'Chinese'}
-        print(f"Question_data: {question_data}") # Debug print
-        print(f"Requesting URL: {question_url}") # Debug print
-        question_response = requests.post(question_url, headers=question_headers, stream=True, json=question_data)
-        question_response.raise_for_status() # Raise an exception for bad status codes
+    def pipe(self, user_message: str, model_id: str, messages: List[dict], body: dict) -> Union[str, Generator]:
+        # 构建适配 OpenAI Compatible API 的请求体
+        openai_messages = [
+            {"role": msg["role"], "content": msg["content"]} for msg in messages
+        ]
 
-        step = 0
-        for line in question_response.iter_lines():
-            if line:
+        # 使用新的 endpoint
+        chat_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/chats_openai/{self.valves.AGENT_ID}/chat/completions"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.valves.API_KEY}'
+        }
+
+        # 构造符合 OpenAI 格式的请求体
+        payload = {
+            "model": model_id or "model",
+            "messages": openai_messages,
+            "stream": True
+        }
+
+        print(f"Requesting URL: {chat_url}")  # Debug
+        print(f"Payload: {payload}")          # Debug
+
+        try:
+            response = requests.post(chat_url, headers=headers, json=payload, stream=True)
+            response.raise_for_status()
+
+            collected_content = ""
+            
+            for line in response.iter_lines():
+                if not line:
+                    continue
                 try:
-                    # Remove 'data: ' prefix and parse JSON
-                    json_data = json.loads(line.decode('utf-8')[5:])
-                    # Extract and yield only the 'text' field from the nested 'data' object
-                    if 'data' in json_data and json_data['data'] is not True and 'answer' in json_data['data'] and '* is running...' not in json_data['data']['answer'] :
-                        if 'chunks' in json_data['data']['reference']:
-                            referenceStr="\n\n### references\n\n"
-                            filesList=[]
-                            for chunk in json_data['data']['reference']['chunks']:
-                                if chunk['document_id'] not in filesList:
-                                    filename = chunk['document_name']
-                                    parts = filename.split('.')
-                                    last_part = parts[-1].strip()
-                                    ext= last_part.lower() if last_part else ''
-                                    referenceStr=referenceStr+f"\n\n - ["+chunk['document_name']+f"]({self.valves.HOST}:{self.valves.PORT}/document/{chunk['document_id']}?ext={ext}&prefix=document)"
-                                    filesList.append(chunk['document_id'])
-                            yield referenceStr
-                        else:
-                            yield json_data['data']['answer'][step:]
-                            step=len(json_data['data']['answer'])
+                    line_str = line.decode('utf-8')
+                    if line_str.startswith("data: "):
+                        data_str = line_str[6:]  # 去掉 "data: " 前缀
+                        if data_str == "[DONE]":
+                            break
+                        chunk = json.loads(data_str)
+
+                        delta = chunk["choices"][0]["delta"]
+                        content = delta.get("content", "")
+
+                        if content:
+                            collected_content += content
+                            yield content  # 流式返回内容
 
                 except json.JSONDecodeError:
-                    print(f"Failed to parse JSON: {line}")
-        else:
-            yield f"Workflow request failed with status code: {question_response.status_code}"
+                    continue  # 忽略无效行
+
+        except requests.RequestException as e:
+            yield f"Workflow request failed: {str(e)}"
