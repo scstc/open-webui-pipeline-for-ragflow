@@ -87,7 +87,7 @@ class Pipeline:
         # This is where you can add your custom RAG pipeline.
         # Typically, you would retrieve relevant information from your knowledge base and synthesize it to generate a response.
         # print(messages)
-        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents_openai/{self.valves.AGENT_ID}/completions"
+        question_url = f"{self.valves.HOST}:{self.valves.PORT}/api/v1/agents_openai/{self.valves.AGENT_ID}/chat/completions"
         question_headers = {
             'content-Type': 'application/json',
             'Authorization': 'Bearer ' + self.valves.API_KEY
